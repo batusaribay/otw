@@ -75,6 +75,7 @@ Game names are case-insensitive. Levels accept `4`, `bandit4`, `level4` or `l4`.
 | `--refresh` | Re-download pages instead of using the cache. |
 | `--links` | Show link URLs after link text. |
 | `-w, --width <COLS>` | Wrap at COLS columns; `0` disables wrapping. |
+
 ### Examples
 
 ```bash
