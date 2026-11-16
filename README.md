@@ -1,28 +1,8 @@
 # over-the-wire
 
+A terminal reader for the OverTheWire wargames.
+
 ![over-the-wire in a terminal](preview.png)
-
-## What it is
-
-A single Rust binary that reads the [OverTheWire](https://overthewire.org/wargames/)
-wargames as terminal text. It covers every game on the site: Bandit, Natas,
-Leviathan, Krypton, Narnia, Behemoth, Utumno, Maze, Vortex, Manpage, Drifter,
-FormulaOne, Semtex and the released conference games.
-
-It is not a game client. It prints the same overviews, level goals, command hints,
-reading lists and included source files that the website shows. It never asks for a
-password, and it contains no walkthroughs.
-
-## Why this exists
-
-The OverTheWire pages are the manual. A level goal says what to look for, the
-commands section points at the right man pages, and the included source explains the
-binary. Those notes are essential for beginners, but they live in a browser and get
-lost behind tabs.
-
-Everything is better in a terminal. `over-the-wire` puts the notes in the same
-scrollback as your SSH session, makes them greppable and scriptable, and keeps an
-offline copy so a bad connection does not stop you from reading the level you are on.
 
 ## How it works
 
