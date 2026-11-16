@@ -23,7 +23,7 @@ use crate::style::{St, Style, visible_width};
 #[command(
     name = "over-the-wire",
     version,
-    about = "A terminal reader for the OverTheWire wargames"
+    about = "A Rust CLI reader for the OverTheWire wargames"
 )]
 struct Cli {
     /// Use only locally cached pages; never touch the network

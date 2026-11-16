@@ -1,6 +1,6 @@
 # over-the-wire
 
-A terminal reader for the OverTheWire wargames.
+A Rust CLI reader for the OverTheWire wargames.
 
 ![over-the-wire in a terminal](preview.png)
 
