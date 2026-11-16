@@ -111,7 +111,7 @@ impl Client {
 
     fn warn_once(&self, message: String) {
         if !self.warned.swap(true, Ordering::Relaxed) {
-            eprintln!("over-the-wire: warning: {message}");
+            eprintln!("warning: {message}");
         }
     }
 }

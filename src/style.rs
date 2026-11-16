@@ -55,17 +55,3 @@ pub fn stdout_is_tty() -> bool {
 pub fn stderr_is_tty() -> bool {
     std::io::stderr().is_terminal()
 }
-
-/// True when ANSI styling should be enabled for the given mode choice.
-pub fn ansi_enabled(mode: crate::ColorMode) -> bool {
-    use crate::ColorMode;
-    match mode {
-        ColorMode::Always => true,
-        ColorMode::Never => false,
-        ColorMode::Auto => {
-            stdout_is_tty()
-                && std::env::var_os("NO_COLOR").is_none()
-                && std::env::var("TERM").map(|t| t != "dumb").unwrap_or(true)
-        }
-    }
-}

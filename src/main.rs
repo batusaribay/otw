@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result, bail};
-use clap::{CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use serde::Serialize;
 
 use crate::cache::{Cache, human_age, human_bytes};
@@ -18,13 +18,6 @@ use crate::client::{Client, PAGE_TTL};
 use crate::games::{Category, Game};
 use crate::html::{Link, RenderOpts, Section};
 use crate::style::{St, Style, visible_width};
-
-#[derive(Clone, Copy, Debug, ValueEnum)]
-enum ColorMode {
-    Auto,
-    Always,
-    Never,
-}
 
 #[derive(Parser)]
 #[command(
@@ -48,16 +41,6 @@ struct Cli {
     /// Wrap output at COLS columns (0 disables wrapping)
     #[arg(short = 'w', long, global = true, value_name = "COLS")]
     width: Option<usize>,
-
-    /// When to emit ANSI styling (monochrome: bold, dim, italic, underline)
-    #[arg(
-        long,
-        global = true,
-        value_enum,
-        value_name = "WHEN",
-        default_value = "auto"
-    )]
-    color: ColorMode,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -213,7 +196,7 @@ fn main() {
         if let Err(error) = command.print_help()
             && error.kind() != io::ErrorKind::BrokenPipe
         {
-            eprintln!("over-the-wire: could not print help: {error}");
+            eprintln!("error: could not print help: {error}");
             std::process::exit(1);
         }
         return;
@@ -226,16 +209,14 @@ fn main() {
         None => 0,
     };
     let cfg = Cfg {
-        style: Style {
-            ansi: style::ansi_enabled(cli.color),
-        },
+        style: Style::PLAIN,
         width,
         links: cli.links,
         offline: cli.offline,
         refresh: cli.refresh,
     };
     if let Err(error) = run(command, &cfg) {
-        eprintln!("over-the-wire: {error:#}");
+        eprintln!("error: {error:#}");
         std::process::exit(1);
     }
 }
@@ -333,7 +314,7 @@ fn emit(text: &str) {
         if error.kind() == io::ErrorKind::BrokenPipe {
             std::process::exit(0);
         }
-        eprintln!("over-the-wire: could not write output: {error}");
+        eprintln!("error: could not write output: {error}");
         std::process::exit(1);
     }
 }
@@ -902,13 +883,10 @@ fn cmd_search(
 
     let failures = failures.into_inner().unwrap();
     for (path, error) in failures.iter().take(3) {
-        eprintln!("over-the-wire: warning: /{path}: {error}");
+        eprintln!("warning: /{path}: {error}");
     }
     if failures.len() > 3 {
-        eprintln!(
-            "over-the-wire: warning: {} more pages failed",
-            failures.len() - 3
-        );
+        eprintln!("warning: {} more pages failed", failures.len() - 3);
     }
 
     let mut hits = hits.into_inner().unwrap();
@@ -961,16 +939,7 @@ fn cmd_search(
                 .paint(St::Bold, &games[hit.game].level_title(hit.page))
         ));
 
-        let line = if cfg.style.ansi {
-            format!(
-                "{}{}{}",
-                hit.before,
-                cfg.style.paint(St::Accent, &hit.matched),
-                hit.after
-            )
-        } else {
-            format!("{}{}{}", hit.before, hit.matched, hit.after)
-        };
+        let line = format!("{}{}{}", hit.before, hit.matched, hit.after);
         out.push_str(&format!("    {line}\n"));
     }
 
@@ -1259,13 +1228,10 @@ fn cmd_cache(command: CacheCommand, cfg: &Cfg) -> Result<()> {
 
             let failures = failures.into_inner().unwrap();
             for (path, error) in failures.iter().take(3) {
-                eprintln!("over-the-wire: warning: /{path}: {error}");
+                eprintln!("warning: /{path}: {error}");
             }
             if failures.len() > 3 {
-                eprintln!(
-                    "over-the-wire: warning: {} more pages failed",
-                    failures.len() - 3
-                );
+                eprintln!("warning: {} more pages failed", failures.len() - 3);
             }
 
             let ok = ok.into_inner();

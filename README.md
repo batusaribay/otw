@@ -1,7 +1,5 @@
 # over-the-wire
 
-The OverTheWire wargames in your terminal.
-
 ![over-the-wire in a terminal](preview.png)
 
 ## What it is
@@ -41,8 +39,8 @@ offline copy so a bad connection does not stop you from reading the level you ar
    for six hours; stale copies are used when the network is unavailable.
 5. `search` walks every level page, matches case-insensitively, and prints a snippet
    around the first hit in each level.
-6. Styling is monochrome: bold, dim, italic and underline only. Output is plain when
-   piped, and every command that makes sense as data has a `--json` form.
+6. Output is plain text. Every command that makes sense as data has a `--json`
+   form.
 
 ## Usage
 
@@ -77,11 +75,6 @@ Game names are case-insensitive. Levels accept `4`, `bandit4`, `level4` or `l4`.
 | `--refresh` | Re-download pages instead of using the cache. |
 | `--links` | Show link URLs after link text. |
 | `-w, --width <COLS>` | Wrap at COLS columns; `0` disables wrapping. |
-| `--color <WHEN>` | ANSI styling: `auto`, `always` or `never`. |
-
-`--color` controls monochrome ANSI styling (bold, dim, italic, underline), not
-hues. It honours `NO_COLOR` and `TERM=dumb`.
-
 ### Examples
 
 ```bash
@@ -114,21 +107,6 @@ cargo install --git https://github.com/batusaribay/over-the-wire.git --locked
 cargo uninstall over-the-wire
 rm -rf ~/.cache/over-the-wire
 ```
-
-## Known Issues
-
-- The renderer understands the current site structure. A major redesign of
-  overthewire.org can change a page's layout; `page` can still render it without
-  game-specific assumptions.
-- Offline search only sees level pages that are in the cache.
-- `--links` makes long reading lists wider, because URLs are shown inline.
-- OverTheWire content is fetched live. If the site is down, only cached pages work.
-
-## Future Ideas
-
-- Shell completions and a man page
-- Local progress notes that survive across sessions
-- Search inside the included source files
 
 ## License
 
