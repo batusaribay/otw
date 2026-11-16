@@ -100,7 +100,7 @@ over-the-wire --offline level bandit 30
 
 `search` exits `1` when nothing matches, like `grep`; other errors also exit `1`.
 
-## Installation
+## Install
 
 **Requirements:** Rust 1.88+ and `git`.
 
