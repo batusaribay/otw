@@ -236,6 +236,32 @@ impl Game {
         }
     }
 
+    /// The account this page is meant to be read as, if there is one.
+    pub fn read_as(&self, page: u32) -> Option<String> {
+        if self.key == "natas" {
+            Some(format!("natas{page}"))
+        } else if self.special {
+            (page > 0).then(|| format!("{}{}", self.key, page))
+        } else {
+            Some(format!("{}{}", self.key, self.login_level(page)))
+        }
+    }
+
+    /// The page that describes the task for a level you are logged in as.
+    pub fn task_page(&self, login_level: u32) -> Result<u32> {
+        let last = self.require_levels()?;
+        if self.key == "natas" || self.special {
+            return Ok(login_level);
+        }
+        if login_level >= last {
+            bail!(
+                "{} has no task after level {last}; the game ends there",
+                self.name
+            );
+        }
+        Ok(login_level + 1)
+    }
+
     pub fn ssh_argv(&self, login_level: u32) -> Option<Vec<String>> {
         let host = self.host.as_ref()?;
         let port = self.port?;
@@ -373,5 +399,34 @@ mod tests {
         }
         assert!(parse_level(&bandit, "35").is_err());
         assert!(parse_level(&bandit, "nope").is_err());
+    }
+
+    #[test]
+    fn task_page_uses_the_current_login_level() {
+        let bandit = game("bandit", false, 34);
+        assert_eq!(bandit.task_page(0).unwrap(), 1);
+        assert_eq!(bandit.task_page(3).unwrap(), 4);
+        assert!(bandit.task_page(34).is_err());
+
+        let krypton = game("krypton", true, 6);
+        assert_eq!(krypton.task_page(0).unwrap(), 0);
+        assert_eq!(krypton.task_page(3).unwrap(), 3);
+
+        let natas = game("natas", false, 34);
+        assert_eq!(natas.task_page(3).unwrap(), 3);
+    }
+
+    #[test]
+    fn read_as_labels_pages() {
+        let bandit = game("bandit", false, 34);
+        assert_eq!(bandit.read_as(0).as_deref(), Some("bandit0"));
+        assert_eq!(bandit.read_as(4).as_deref(), Some("bandit3"));
+
+        let krypton = game("krypton", true, 6);
+        assert_eq!(krypton.read_as(0), None);
+        assert_eq!(krypton.read_as(3).as_deref(), Some("krypton3"));
+
+        let natas = game("natas", false, 34);
+        assert_eq!(natas.read_as(3).as_deref(), Some("natas3"));
     }
 }

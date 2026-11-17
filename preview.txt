@@ -1,5 +1,6 @@
-$ over-the-wire level bandit 4
+$ over-the-wire task bandit 3
 ## Bandit · Level 3 → Level 4
+.. Read as bandit3
 
 ## ▌ Level Goal
 

@@ -76,13 +76,25 @@ enum Command {
         json: bool,
     },
 
-    /// Show the goal, commands and hints for one level
+    /// Show a website level page (goal, commands and hints)
     #[command(alias = "l")]
     Level {
         /// Game name, e.g. bandit
         game: String,
         /// Level page, e.g. 4
         level: String,
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Show the task for the level you are logged in as
+    #[command(alias = "at")]
+    Task {
+        /// Game name, e.g. bandit
+        game: String,
+        /// Level you are logged in as (default: 0)
+        level: Option<String>,
         /// Print machine-readable JSON
         #[arg(long)]
         json: bool,
@@ -242,6 +254,11 @@ fn run(command: Command, cfg: &Cfg) -> Result<()> {
             let client = Client::new(cfg.offline, cfg.refresh)?;
             let games = games::load(&client)?;
             cmd_level(&client, &games, &game, &level, cfg, json)
+        }
+        Command::Task { game, level, json } => {
+            let client = Client::new(cfg.offline, cfg.refresh)?;
+            let games = games::load(&client)?;
+            cmd_task(&client, &games, &game, level.as_deref(), cfg, json)
         }
         Command::Ssh { game, level, run } => {
             let client = Client::new(cfg.offline, cfg.refresh)?;
@@ -555,6 +572,7 @@ struct LevelJson {
     page: u32,
     title: String,
     url: String,
+    read_as: Option<String>,
     ssh: Option<String>,
     web: Option<String>,
     sections: Vec<Section>,
@@ -572,6 +590,27 @@ fn cmd_level(
 ) -> Result<()> {
     let game = Game::find(games, name)?;
     let page_number = games::parse_level(game, level)?;
+    show_level(client, game, page_number, cfg, json)
+}
+
+fn cmd_task(
+    client: &Client,
+    games: &[Game],
+    name: &str,
+    level: Option<&str>,
+    cfg: &Cfg,
+    json: bool,
+) -> Result<()> {
+    let game = Game::find(games, name)?;
+    let login_level = match level {
+        Some(level) => games::parse_level(game, level)?,
+        None => 0,
+    };
+    let page_number = game.task_page(login_level)?;
+    show_level(client, game, page_number, cfg, json)
+}
+
+fn show_level(client: &Client, game: &Game, page_number: u32, cfg: &Cfg, json: bool) -> Result<()> {
     let raw = client
         .get(&game.level_path(page_number), PAGE_TTL)
         .with_context(|| format!("loading {} level {page_number}", game.name))?;
@@ -588,6 +627,7 @@ fn cmd_level(
             page: page_number,
             title,
             url: game.level_url(page_number),
+            read_as: game.read_as(page_number),
             ssh: game.ssh_command(login_level),
             web: game.web_url(page_number),
             sections: page.sections,
@@ -601,10 +641,17 @@ fn cmd_level(
         bail!("{} level {page_number} has no readable content", game.name);
     }
 
+    let read_as = game
+        .read_as(page_number)
+        .map(|user| format!("Read as {user}"))
+        .unwrap_or_else(|| "Starting point".to_string());
+
     let mut out = String::new();
     out.push_str(&cfg.style.paint(St::Accent, &game.name));
     out.push_str(&cfg.style.paint(St::Dim, " · "));
     out.push_str(&cfg.style.paint(St::Bold, &title));
+    out.push('\n');
+    out.push_str(&cfg.style.paint(St::Dim, &read_as));
     out.push_str("\n\n");
     out.push_str(&body);
     emit(&out);
