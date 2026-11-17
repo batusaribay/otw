@@ -3,12 +3,12 @@ name = "over-the-wire"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
-description = "A Rust CLI reader for the OverTheWire wargames"
+description = "A Rust CLI for OverTheWire games"
 license = "MIT"
 repository = "https://github.com/batusaribay/over-the-wire"
 homepage = "https://github.com/batusaribay/over-the-wire"
 readme = "README.md"
-keywords = ["overthewire", "wargames", "cli", "security", "terminal"]
+keywords = ["overthewire", "games", "cli", "security", "terminal"]
 categories = ["command-line-utilities"]
 
 [[bin]]

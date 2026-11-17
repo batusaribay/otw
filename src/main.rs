@@ -23,7 +23,7 @@ use crate::style::{St, Style, visible_width};
 #[command(
     name = "over-the-wire",
     version,
-    about = "A Rust CLI reader for the OverTheWire wargames"
+    about = "A Rust CLI for OverTheWire games"
 )]
 struct Cli {
     /// Use only locally cached pages; never touch the network
@@ -48,7 +48,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// List every wargame and its server
+    /// List every game and its server
     #[command(alias = "list")]
     Games {
         /// Print machine-readable JSON
@@ -56,7 +56,7 @@ enum Command {
         json: bool,
     },
 
-    /// Show a wargame's overview and beginner notes
+    /// Show a game's overview and beginner notes
     #[command(alias = "show")]
     Info {
         /// Game name, e.g. bandit
@@ -66,7 +66,7 @@ enum Command {
         json: bool,
     },
 
-    /// List the levels of a wargame
+    /// List the levels of a game
     #[command(alias = "ls")]
     Levels {
         /// Game name, e.g. bandit
@@ -122,7 +122,7 @@ enum Command {
     /// Show the suggested order for playing the games
     Start,
 
-    /// Show the wargames rules
+    /// Show the game rules
     Rules {
         /// Print machine-readable JSON
         #[arg(long)]
@@ -132,7 +132,7 @@ enum Command {
     /// Render any page from overthewire.org
     #[command(alias = "cat")]
     Page {
-        /// Path such as /wargames/bandit/bandit0.html (or a full overthewire.org URL)
+        /// Path such as /rules/ (or a full overthewire.org URL)
         path: String,
         /// Print machine-readable JSON
         #[arg(long)]

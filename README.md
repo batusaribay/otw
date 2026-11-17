@@ -1,6 +1,6 @@
 # over-the-wire
 
-A Rust CLI reader for the OverTheWire wargames.
+A Rust CLI for OverTheWire games.
 
 ![over-the-wire in a terminal](preview.png)
 
@@ -37,7 +37,7 @@ A Rust CLI reader for the OverTheWire wargames.
 | `over-the-wire ssh <game> [level] --run` | Connect with SSH. |
 | `over-the-wire search <text>` | Search every level's notes. |
 | `over-the-wire start` | Show the suggested order for playing the games. |
-| `over-the-wire rules` | Show the wargame rules. |
+| `over-the-wire rules` | Show the game rules. |
 | `over-the-wire page <path>` | Render any overthewire.org page. |
 | `over-the-wire cache status` | Show cache location, size and age. |
 | `over-the-wire cache fetch --all` | Download everything for offline reading. |
@@ -93,6 +93,6 @@ rm -rf ~/.cache/over-the-wire
 
 The `over-the-wire` code is licensed under the [MIT License](LICENSE).
 
-The wargame notes, goals and source files shown by the tool belong to
+The game notes, goals and source files shown by the tool belong to
 OverTheWire and remain copyright their authors. The tool fetches them at runtime
 and does not redistribute them.

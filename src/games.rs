@@ -109,31 +109,31 @@ pub const META: &[Meta] = &[
         key: "semtex",
         name: "Semtex",
         category: Category::Offline,
-        blurb: "Offline shell wargame",
+        blurb: "Offline shell game",
     },
     Meta {
         key: "hes2010",
         name: "HES2010",
         category: Category::Released,
-        blurb: "Conference wargame (2010)",
+        blurb: "Conference game (2010)",
     },
     Meta {
         key: "abraxas",
         name: "Abraxas",
         category: Category::Released,
-        blurb: "Conference wargame (2011)",
+        blurb: "Conference game (2011)",
     },
     Meta {
         key: "monxla",
         name: "Monxla",
         category: Category::Released,
-        blurb: "Conference wargame (2012)",
+        blurb: "Conference game (2012)",
     },
     Meta {
         key: "kishi",
         name: "Kishi",
         category: Category::Released,
-        blurb: "Conference wargame (2013)",
+        blurb: "Conference game (2013)",
     },
 ];
 
