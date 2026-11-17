@@ -1,6 +1,6 @@
 # over-the-wire
 
-A Rust CLI for OverTheWire games.
+A Rust CLI for OverTheWire games
 
 ![over-the-wire in a terminal](preview.png)
 
