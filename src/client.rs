@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -6,6 +7,9 @@ use anyhow::{Result, bail};
 use crate::cache::Cache;
 
 pub const BASE: &str = "https://overthewire.org";
+/// Never read more than this from a page. A broken or hostile response should
+/// not be able to exhaust memory.
+const MAX_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
 pub const PAGE_TTL: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 pub const MANIFEST_TTL: Duration = Duration::from_secs(6 * 60 * 60);
 
@@ -62,12 +66,12 @@ impl Client {
         }
 
         let url = format!("{BASE}/{rel}");
-        let fetched = self
-            .http
-            .get(&url)
-            .send()
-            .and_then(|response| response.error_for_status())
-            .and_then(|response| response.text());
+        let fetched = (|| -> Result<String> {
+            let response = self.http.get(&url).send()?.error_for_status()?;
+            let mut bytes = Vec::new();
+            response.take(MAX_RESPONSE_BYTES).read_to_end(&mut bytes)?;
+            Ok(String::from_utf8_lossy(&bytes).into_owned())
+        })();
 
         match fetched {
             Ok(body) => {

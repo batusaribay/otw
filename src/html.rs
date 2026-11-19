@@ -92,7 +92,20 @@ pub fn render_page(html: &str, opts: &RenderOpts) -> String {
     };
     let mut renderer = Renderer::new(opts);
     renderer.render_element(main);
-    renderer.finish()
+    let rendered = renderer.finish();
+    if opts.style.ansi {
+        rendered
+    } else {
+        clean_controls(&rendered)
+    }
+}
+
+/// Page text is not trusted to be plain: a crafted page must not be able to
+/// send escape sequences to the terminal.
+fn clean_controls(text: &str) -> String {
+    text.chars()
+        .filter(|character| *character == '\n' || *character == '\t' || !character.is_control())
+        .collect()
 }
 
 pub fn plain_text(html: &str, width: usize) -> String {
@@ -123,7 +136,7 @@ pub fn parse_page(html: &str) -> Page {
     };
 
     for link in main.select(link_selector()) {
-        let href = link.value().attr("href").unwrap_or("").trim();
+        let href = collapse(link.value().attr("href").unwrap_or(""));
         let text = collapse(&link.text().collect::<String>());
         if !href.is_empty() && !text.is_empty() {
             page.links.push(Link {
@@ -165,14 +178,19 @@ pub fn parse_page(html: &str) -> Page {
 }
 
 fn push_section(sections: &mut Vec<Section>, heading: Option<String>, text: String) {
-    let text = text.trim_end().to_string();
+    let text = clean_controls(&text).trim_end().to_string();
     if heading.is_some() || !text.is_empty() {
         sections.push(Section { heading, text });
     }
 }
 
 fn collapse(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+    text.chars()
+        .filter(|character| !character.is_control() || character.is_whitespace())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn combine(base: St, extra: St) -> St {
@@ -467,7 +485,7 @@ impl Renderer {
                         }
                     }
                     "a" => {
-                        let href = element.attr("href").unwrap_or("");
+                        let href = collapse(element.attr("href").unwrap_or(""));
                         let label = collapse(
                             &ElementRef::wrap(node)
                                 .map(|element| element.text().collect::<String>())
@@ -477,9 +495,9 @@ impl Renderer {
                             self.collect_inline(child, style, tokens, pending_space);
                         }
                         if self.links
-                            && is_visible_link(href)
+                            && is_visible_link(&href)
                             && !label.is_empty()
-                            && !label.eq_ignore_ascii_case(href)
+                            && !label.eq_ignore_ascii_case(&href)
                         {
                             tokens.push(word(format!("<{href}>"), St::Dim));
                             *pending_space = true;
@@ -774,6 +792,15 @@ mod tests {
         let text = render(html);
         assert!(text.contains("Included file: x.c"), "{text}");
         assert!(text.contains("int main;"));
+    }
+
+    #[test]
+    fn strips_terminal_controls_from_page_text() {
+        let html = "<html><body><main id=\"content\"><p>safe\u{1b}[31mred</p><pre>a\u{7}b</pre></main></body></html>";
+        let text = render(html);
+        assert!(!text.contains('\u{1b}'), "{text:?}");
+        assert!(!text.contains('\u{7}'), "{text:?}");
+        assert!(text.contains("safe[31mred"), "{text:?}");
     }
 
     #[test]

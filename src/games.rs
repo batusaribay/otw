@@ -158,6 +158,30 @@ pub struct Game {
     pub special: bool,
 }
 
+/// The remote manifest controls these values, so keep a corrupt or compromised
+/// entry from making a command loop over billions of pages.
+const MAX_LEVEL: u32 = 500;
+
+fn valid_host(host: &str) -> Option<String> {
+    let host = host.trim();
+    if host.is_empty() {
+        return None;
+    }
+    let valid = if host.contains(':') {
+        host.parse::<std::net::Ipv6Addr>().is_ok()
+    } else {
+        host.len() <= 253
+            && host.split('.').all(|label| {
+                !label.is_empty()
+                    && label.len() <= 63
+                    && !label.starts_with('-')
+                    && !label.ends_with('-')
+                    && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+            })
+    };
+    valid.then(|| host.to_string())
+}
+
 pub fn load(client: &Client) -> Result<Vec<Game>> {
     let raw = client.get("games.json", MANIFEST_TTL)?;
     let entries: BTreeMap<String, GameEntry> =
@@ -171,9 +195,11 @@ pub fn load(client: &Client) -> Result<Vec<Game>> {
             name: meta.name.to_string(),
             category: meta.category,
             blurb: meta.blurb,
-            host: entry.and_then(|entry| entry.host.clone()),
+            host: entry
+                .and_then(|entry| entry.host.as_deref())
+                .and_then(valid_host),
             port: entry.and_then(|entry| entry.port),
-            last: entry.map(|entry| entry.lastlevel),
+            last: entry.map(|entry| entry.lastlevel.min(MAX_LEVEL)),
             special: entry.map(|entry| entry.special_numbering).unwrap_or(false),
         });
     }
@@ -355,6 +381,20 @@ mod tests {
             last: Some(last),
             special,
         }
+    }
+
+    #[test]
+    fn only_accepts_plain_hostnames_from_the_manifest() {
+        assert_eq!(
+            valid_host("bandit.overthewire.org").as_deref(),
+            Some("bandit.overthewire.org")
+        );
+        assert_eq!(valid_host("127.0.0.1").as_deref(), Some("127.0.0.1"));
+        assert!(valid_host("::1").is_some());
+        assert_eq!(valid_host("evil; rm -rf ~"), None);
+        assert_eq!(valid_host("host $(id)"), None);
+        assert_eq!(valid_host("-bad.example"), None);
+        assert_eq!(valid_host(""), None);
     }
 
     #[test]
