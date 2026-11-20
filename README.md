@@ -32,7 +32,7 @@ A Rust CLI for OverTheWire games
 | `over-the-wire games` | List games, level ranges and SSH servers. |
 | `over-the-wire info <game>` | Show a game's overview and beginner notes. |
 | `over-the-wire levels <game>` | List the levels of a game. |
-| `over-the-wire level <game> [level]` | Show the task for the level you are logged in as, or the starting page. |
+| `over-the-wire level <game> [level]` | Show the task for the level you are logged in as. |
 | `over-the-wire ssh <game> [level]` | Print the SSH command for a level. |
 | `over-the-wire ssh <game> [level] --run` | Connect with SSH. |
 | `over-the-wire search <text>` | Search every level's notes. |
@@ -48,8 +48,9 @@ Game names are case-insensitive. Levels accept `4`, `bandit4`, `level4` or `l4`.
 `over-the-wire ssh natas 3` prints the level URL instead of an SSH command.
 
 `level` takes the level you are logged in as: `over-the-wire level bandit 3` shows the
-task for bandit3, which is website page 4. Omit the level to show the game's starting
-page. Krypton, Vortex and Natas use the same number for both.
+task for bandit3, which is website page 4. `level bandit` is shorthand for
+`level bandit 0`, which shows the login page and the first task. Krypton, Vortex and
+Natas use the same number for both.
 
 ### Options
 
@@ -65,7 +66,7 @@ page. Krypton, Vortex and Natas use the same number for both.
 ```bash
 over-the-wire games
 over-the-wire info bandit
-over-the-wire level bandit
+over-the-wire level bandit 0
 over-the-wire level bandit 3
 over-the-wire ssh bandit 3
 over-the-wire ssh bandit 3 --run

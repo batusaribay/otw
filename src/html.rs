@@ -39,19 +39,19 @@ fn word(text: impl Into<String>, style: St) -> Tok {
     }
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct Section {
     pub heading: Option<String>,
     pub text: String,
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct Link {
     pub text: String,
     pub href: String,
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct Page {
     pub title: String,
     pub sections: Vec<Section>,

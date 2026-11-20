@@ -81,7 +81,7 @@ enum Command {
     Level {
         /// Game name, e.g. bandit
         game: String,
-        /// Level you are logged in as; omit for the starting page
+        /// Level you are logged in as (default: 0)
         level: Option<String>,
         /// Print machine-readable JSON
         #[arg(long)]
@@ -333,6 +333,14 @@ fn footer_row(cfg: &Cfg, label: &str, value: &str) -> String {
     )
 }
 
+fn section_heading(cfg: &Cfg, text: &str) -> String {
+    format!(
+        "{}{}\n\n",
+        cfg.style.paint(St::Dim, "▌ "),
+        cfg.style.paint(St::Bold, text)
+    )
+}
+
 #[derive(Serialize)]
 struct GameJson {
     key: String,
@@ -570,9 +578,26 @@ struct LevelJson {
     read_as: Option<String>,
     ssh: Option<String>,
     web: Option<String>,
+    start: Option<StartJson>,
     sections: Vec<Section>,
     links: Vec<Link>,
     text: String,
+}
+
+#[derive(Serialize)]
+struct StartJson {
+    title: String,
+    url: String,
+    sections: Vec<Section>,
+    links: Vec<Link>,
+    text: String,
+}
+
+struct StartPage {
+    title: String,
+    url: String,
+    body: String,
+    page: html::Page,
 }
 
 fn cmd_level(
@@ -589,10 +614,7 @@ fn cmd_level(
             let level_number = games::parse_task_level(game, level)?;
             (level_number, game.task_page(level_number)?)
         }
-        None => {
-            game.require_levels()?;
-            (0, 0)
-        }
+        None => (0, game.task_page(0)?),
     };
     show_level(client, game, level_number, page_number, cfg, json)
 }
@@ -613,6 +635,25 @@ fn show_level(
     let title = game.level_title(page_number);
     let login_level = game.login_level(page_number);
 
+    // Level 0 of a normal shell game starts with the login page (page 0) and
+    // then the first task (page 1). Show both so one command starts the game.
+    let include_start = level_number == 0 && page_number > 0;
+    let start = if include_start {
+        let start_path = game.level_path(0);
+        let start_raw = client
+            .get(&start_path, PAGE_TTL)
+            .with_context(|| format!("loading {} starting page", game.name))?;
+        let start_raw = expand_includes(client, &start_raw, &start_path);
+        Some(StartPage {
+            title: game.level_title(0),
+            url: game.level_url(0),
+            body: html::render_page(&start_raw, &cfg.render_opts()),
+            page: html::parse_page(&start_raw),
+        })
+    } else {
+        None
+    };
+
     if json {
         let page = html::parse_page(&raw);
         return print_json(&LevelJson {
@@ -625,6 +666,13 @@ fn show_level(
             read_as: game.read_as(page_number),
             ssh: game.ssh_command(login_level),
             web: game.web_url(page_number),
+            start: start.as_ref().map(|start| StartJson {
+                title: start.title.clone(),
+                url: start.url.clone(),
+                sections: start.page.sections.clone(),
+                links: start.page.links.clone(),
+                text: start.page.text.clone(),
+            }),
             sections: page.sections,
             links: page.links,
             text: page.text,
@@ -644,10 +692,23 @@ fn show_level(
     let mut out = String::new();
     out.push_str(&cfg.style.paint(St::Accent, &game.name));
     out.push_str(&cfg.style.paint(St::Dim, " · "));
-    out.push_str(&cfg.style.paint(St::Bold, &title));
+    if include_start {
+        out.push_str(&cfg.style.paint(St::Bold, &game.level_title(0)));
+    } else {
+        out.push_str(&cfg.style.paint(St::Bold, &title));
+    }
     out.push('\n');
     out.push_str(&cfg.style.paint(St::Dim, &read_as));
     out.push_str("\n\n");
+    if let Some(start) = &start {
+        out.push_str(&section_heading(cfg, "Start here"));
+        out.push_str(&start.body);
+        if !start.body.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push('\n');
+        out.push_str(&section_heading(cfg, "First task"));
+    }
     out.push_str(&body);
     emit(&out);
     Ok(())
