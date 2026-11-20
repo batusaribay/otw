@@ -334,11 +334,7 @@ fn footer_row(cfg: &Cfg, label: &str, value: &str) -> String {
 }
 
 fn section_heading(cfg: &Cfg, text: &str) -> String {
-    format!(
-        "{}{}\n\n",
-        cfg.style.paint(St::Dim, "▌ "),
-        cfg.style.paint(St::Bold, text)
-    )
+    format!("{}\n\n", cfg.style.paint(St::Bold, text))
 }
 
 #[derive(Serialize)]

@@ -9,8 +9,8 @@ A Rust CLI for OverTheWire games
 1. `overthewire.org/games.json` provides the game list, level counts, SSH hosts and
    ports, including the games that use special level numbering.
 2. Game, level and rules pages are downloaded on demand, parsed as HTML, and rendered
-   as width-aware plain text. Headings, lists, code blocks and inline commands
-   survive the trip.
+   as width-aware plain text. Headings, lists and code blocks stay readable without
+   decorative markers.
 3. Some pages load their source with a `renderCode("...")` JavaScript call. Those
    files are fetched too and shown inline, so Vortex and Semtex source code is
    present in the terminal.

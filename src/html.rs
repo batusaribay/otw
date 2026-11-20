@@ -348,7 +348,7 @@ impl Renderer {
                     }
                     2 => {
                         restyle(&mut tokens, St::Bold);
-                        self.write_tokens(&tokens, 0, Some(("▌ ", St::Dim)));
+                        self.write_tokens(&tokens, 0, None);
                     }
                     _ => {
                         restyle(&mut tokens, St::Bold);
@@ -370,16 +370,7 @@ impl Renderer {
             }
             "pre" => self.render_pre(element),
             "blockquote" => self.render_quote(element),
-            "hr" => {
-                self.blank();
-                let width = if self.width == 0 {
-                    40
-                } else {
-                    self.width.min(40)
-                };
-                self.line(&self.style.paint(St::Dim, &"─".repeat(width)));
-                self.blank();
-            }
+            "hr" => self.blank(),
             "br" => self.blank(),
             "img" => {
                 if let Some(alt) = element.value().attr("alt") {
@@ -626,7 +617,7 @@ impl Renderer {
             let marker = if ordered {
                 format!("{number}. ")
             } else {
-                "• ".to_string()
+                "- ".to_string()
             };
             let marker_style = St::Dim;
             number += 1;
@@ -700,9 +691,12 @@ impl Renderer {
             return;
         }
         self.blank();
-        let bar = self.style.paint(St::Dim, "│");
         for line in text.lines() {
-            self.line(&format!("{bar} {line}"));
+            if line.trim().is_empty() {
+                self.blank();
+            } else {
+                self.line(&format!("  {line}"));
+            }
         }
         self.blank();
     }
@@ -762,10 +756,12 @@ mod tests {
             </main></body></html>
         "#;
         let text = render(html);
-        assert!(text.contains("▌ Level Goal"));
+        assert!(text.contains("Level Goal"));
+        assert!(!text.contains('▌'));
         assert!(text.contains("Use ls now."));
-        assert!(text.contains("• one"));
-        assert!(text.contains("• two"));
+        assert!(text.contains("- one"));
+        assert!(text.contains("- two"));
+        assert!(!text.contains('•'));
     }
 
     #[test]
