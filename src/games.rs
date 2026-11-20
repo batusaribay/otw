@@ -288,6 +288,17 @@ impl Game {
         Ok(login_level + 1)
     }
 
+    /// The level whose task is described by a page, if it has one.
+    pub fn task_level(&self, page: u32) -> Option<u32> {
+        if self.key == "natas" || self.special {
+            Some(page)
+        } else if page == 0 {
+            None
+        } else {
+            Some(page - 1)
+        }
+    }
+
     pub fn ssh_argv(&self, login_level: u32) -> Option<Vec<String>> {
         let host = self.host.as_ref()?;
         let port = self.port?;
@@ -311,10 +322,22 @@ impl Game {
         }
     }
 
+    /// The levels that have a task: `0..=last` for web and special-numbering
+    /// games, `0..=(last - 1)` for normal shell games (the final login has no
+    /// next task).
+    pub fn level_range(&self) -> Result<std::ops::RangeInclusive<u32>> {
+        let last = self.require_levels()?;
+        if self.key == "natas" || self.special || last == 0 {
+            Ok(0..=last)
+        } else {
+            Ok(0..=(last - 1))
+        }
+    }
+
     pub fn levels_label(&self) -> String {
-        match self.last {
-            Some(last) => format!("0–{last}"),
-            None => "—".to_string(),
+        match self.level_range() {
+            Ok(range) => format!("{}–{}", range.start(), range.end()),
+            Err(_) => "—".to_string(),
         }
     }
 
@@ -338,8 +361,7 @@ impl Game {
     }
 }
 
-/// Parse a level page number, accepting both `3` and `bandit3`.
-pub fn parse_level(game: &Game, input: &str) -> Result<u32> {
+fn parse_level_number(game: &Game, input: &str) -> Result<u32> {
     let raw = input.trim();
     let lower = raw.to_ascii_lowercase();
     let number = if let Ok(number) = raw.parse::<u32>() {
@@ -352,16 +374,35 @@ pub fn parse_level(game: &Game, input: &str) -> Result<u32> {
         })
     };
 
-    let number = number.ok_or_else(|| {
+    number.ok_or_else(|| {
         anyhow::anyhow!(
             "invalid level '{input}' for {} (expected a number, e.g. 3)",
             game.name
         )
-    })?;
+    })
+}
 
+/// Parse a login level, accepting both `3` and `bandit3`.
+pub fn parse_level(game: &Game, input: &str) -> Result<u32> {
+    let number = parse_level_number(game, input)?;
     let last = game.require_levels()?;
     if number > last {
         bail!("{} has levels 0–{} (got {number})", game.name, last);
+    }
+    Ok(number)
+}
+
+/// Parse a level that has a task (`over-the-wire level`).
+pub fn parse_task_level(game: &Game, input: &str) -> Result<u32> {
+    let number = parse_level_number(game, input)?;
+    let range = game.level_range()?;
+    if !range.contains(&number) {
+        bail!(
+            "{} has levels {}–{} (got {number})",
+            game.name,
+            range.start(),
+            range.end()
+        );
     }
     Ok(number)
 }
@@ -468,5 +509,47 @@ mod tests {
 
         let natas = game("natas", false, 34);
         assert_eq!(natas.read_as(3).as_deref(), Some("natas3"));
+    }
+
+    #[test]
+    fn task_level_is_the_inverse_of_task_page() {
+        let bandit = game("bandit", false, 34);
+        assert_eq!(bandit.task_level(0), None);
+        assert_eq!(bandit.task_level(4), Some(3));
+
+        let krypton = game("krypton", true, 6);
+        assert_eq!(krypton.task_level(0), Some(0));
+        assert_eq!(krypton.task_level(3), Some(3));
+
+        let natas = game("natas", false, 34);
+        assert_eq!(natas.task_level(3), Some(3));
+    }
+
+    #[test]
+    fn level_ranges_cover_tasks_only() {
+        let bandit = game("bandit", false, 34);
+        assert_eq!(bandit.level_range().unwrap(), 0..=33);
+        assert_eq!(bandit.levels_label(), "0–33");
+
+        let krypton = game("krypton", true, 6);
+        assert_eq!(krypton.level_range().unwrap(), 0..=6);
+        assert_eq!(krypton.levels_label(), "0–6");
+
+        let natas = game("natas", false, 34);
+        assert_eq!(natas.level_range().unwrap(), 0..=34);
+        assert_eq!(natas.levels_label(), "0–34");
+    }
+
+    #[test]
+    fn parses_task_levels() {
+        let bandit = game("bandit", false, 34);
+        assert_eq!(parse_task_level(&bandit, "bandit3").unwrap(), 3);
+        assert!(parse_task_level(&bandit, "34").is_err());
+
+        let krypton = game("krypton", true, 6);
+        assert_eq!(parse_task_level(&krypton, "6").unwrap(), 6);
+
+        let natas = game("natas", false, 34);
+        assert_eq!(parse_task_level(&natas, "34").unwrap(), 34);
     }
 }

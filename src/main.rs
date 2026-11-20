@@ -76,24 +76,12 @@ enum Command {
         json: bool,
     },
 
-    /// Show a website level page (goal, commands and hints)
+    /// Show the task for the level you are logged in as
     #[command(alias = "l")]
     Level {
         /// Game name, e.g. bandit
         game: String,
-        /// Level page, e.g. 4
-        level: String,
-        /// Print machine-readable JSON
-        #[arg(long)]
-        json: bool,
-    },
-
-    /// Show the task for the level you are logged in as
-    #[command(alias = "at")]
-    Task {
-        /// Game name, e.g. bandit
-        game: String,
-        /// Level you are logged in as (default: 0)
+        /// Level you are logged in as; omit for the starting page
         level: Option<String>,
         /// Print machine-readable JSON
         #[arg(long)]
@@ -253,12 +241,7 @@ fn run(command: Command, cfg: &Cfg) -> Result<()> {
         Command::Level { game, level, json } => {
             let client = Client::new(cfg.offline, cfg.refresh)?;
             let games = games::load(&client)?;
-            cmd_level(&client, &games, &game, &level, cfg, json)
-        }
-        Command::Task { game, level, json } => {
-            let client = Client::new(cfg.offline, cfg.refresh)?;
-            let games = games::load(&client)?;
-            cmd_task(&client, &games, &game, level.as_deref(), cfg, json)
+            cmd_level(&client, &games, &game, level.as_deref(), cfg, json)
         }
         Command::Ssh { game, level, run } => {
             let client = Client::new(cfg.offline, cfg.refresh)?;
@@ -357,6 +340,7 @@ struct GameJson {
     category: Category,
     description: &'static str,
     last_level: Option<u32>,
+    last_page: Option<u32>,
     special_numbering: bool,
     host: Option<String>,
     port: Option<u16>,
@@ -371,7 +355,8 @@ impl GameJson {
             name: game.name.clone(),
             category: game.category,
             description: game.blurb,
-            last_level: game.last,
+            last_level: game.level_range().ok().map(|range| *range.end()),
+            last_page: game.last,
             special_numbering: game.special,
             host: game.host.clone(),
             port: game.port,
@@ -446,6 +431,7 @@ struct InfoJson {
     host: Option<String>,
     port: Option<u16>,
     last_level: Option<u32>,
+    last_page: Option<u32>,
     special_numbering: bool,
     url: String,
     title: String,
@@ -470,7 +456,8 @@ fn cmd_info(client: &Client, games: &[Game], name: &str, cfg: &Cfg, json: bool) 
             description: game.blurb,
             host: game.host.clone(),
             port: game.port,
-            last_level: game.last,
+            last_level: game.level_range().ok().map(|range| *range.end()),
+            last_page: game.last,
             special_numbering: game.special,
             url: game.info_url(),
             title: page.title,
@@ -504,8 +491,8 @@ fn cmd_info(client: &Client, games: &[Game], name: &str, cfg: &Cfg, json: bool) 
         ));
     }
 
-    if let Some(last) = game.last {
-        out.push_str(&footer_row(cfg, "Levels", &format!("0–{last}")));
+    if game.last.is_some() {
+        out.push_str(&footer_row(cfg, "Levels", &game.levels_label()));
     }
 
     emit(&out);
@@ -514,6 +501,7 @@ fn cmd_info(client: &Client, games: &[Game], name: &str, cfg: &Cfg, json: bool) 
 
 #[derive(Serialize)]
 struct LevelItem {
+    level: u32,
     page: u32,
     title: String,
     url: String,
@@ -529,14 +517,19 @@ struct LevelsJson {
 
 fn cmd_levels(games: &[Game], name: &str, cfg: &Cfg, json: bool) -> Result<()> {
     let game = Game::find(games, name)?;
-    let last = game.require_levels()?;
+    let range = game.level_range()?;
+    let last = *range.end();
 
     if json {
         let levels = (0..=last)
-            .map(|page| LevelItem {
-                page,
-                title: game.level_title(page),
-                url: game.level_url(page),
+            .map(|level| {
+                let page = game.task_page(level).expect("level range is valid");
+                LevelItem {
+                    level,
+                    page,
+                    title: game.level_title(page),
+                    url: game.level_url(page),
+                }
             })
             .collect();
         return print_json(&LevelsJson {
@@ -550,14 +543,15 @@ fn cmd_levels(games: &[Game], name: &str, cfg: &Cfg, json: bool) -> Result<()> {
     let width = last.to_string().len();
     let mut out = String::new();
     out.push_str(&cfg.style.paint(St::Accent, &game.name));
-    out.push_str(&cfg.style.paint(
-        St::Dim,
-        &format!(" · {} level pages (0–{last})\n\n", last + 1),
-    ));
-    for page in 0..=last {
+    out.push_str(
+        &cfg.style
+            .paint(St::Dim, &format!(" · {} levels (0–{last})\n\n", last + 1)),
+    );
+    for level in 0..=last {
+        let page = game.task_page(level).expect("level range is valid");
         out.push_str(&format!(
             "  {}  {}\n",
-            cfg.style.paint(St::Dim, &format!("{page:>width$}")),
+            cfg.style.paint(St::Dim, &format!("{level:>width$}")),
             game.level_title(page)
         ));
     }
@@ -569,6 +563,7 @@ fn cmd_levels(games: &[Game], name: &str, cfg: &Cfg, json: bool) -> Result<()> {
 struct LevelJson {
     game: String,
     name: String,
+    level: u32,
     page: u32,
     title: String,
     url: String,
@@ -584,33 +579,32 @@ fn cmd_level(
     client: &Client,
     games: &[Game],
     name: &str,
-    level: &str,
-    cfg: &Cfg,
-    json: bool,
-) -> Result<()> {
-    let game = Game::find(games, name)?;
-    let page_number = games::parse_level(game, level)?;
-    show_level(client, game, page_number, cfg, json)
-}
-
-fn cmd_task(
-    client: &Client,
-    games: &[Game],
-    name: &str,
     level: Option<&str>,
     cfg: &Cfg,
     json: bool,
 ) -> Result<()> {
     let game = Game::find(games, name)?;
-    let login_level = match level {
-        Some(level) => games::parse_level(game, level)?,
-        None => 0,
+    let (level_number, page_number) = match level {
+        Some(level) => {
+            let level_number = games::parse_task_level(game, level)?;
+            (level_number, game.task_page(level_number)?)
+        }
+        None => {
+            game.require_levels()?;
+            (0, 0)
+        }
     };
-    let page_number = game.task_page(login_level)?;
-    show_level(client, game, page_number, cfg, json)
+    show_level(client, game, level_number, page_number, cfg, json)
 }
 
-fn show_level(client: &Client, game: &Game, page_number: u32, cfg: &Cfg, json: bool) -> Result<()> {
+fn show_level(
+    client: &Client,
+    game: &Game,
+    level_number: u32,
+    page_number: u32,
+    cfg: &Cfg,
+    json: bool,
+) -> Result<()> {
     let raw = client
         .get(&game.level_path(page_number), PAGE_TTL)
         .with_context(|| format!("loading {} level {page_number}", game.name))?;
@@ -624,6 +618,7 @@ fn show_level(client: &Client, game: &Game, page_number: u32, cfg: &Cfg, json: b
         return print_json(&LevelJson {
             game: game.key.clone(),
             name: game.name.clone(),
+            level: level_number,
             page: page_number,
             title,
             url: game.level_url(page_number),
@@ -754,6 +749,7 @@ struct Hit {
 struct SearchHitJson {
     game: String,
     name: String,
+    level: Option<u32>,
     page: u32,
     title: String,
     url: String,
@@ -949,6 +945,7 @@ fn cmd_search(
             .map(|hit| SearchHitJson {
                 game: games[hit.game].key.clone(),
                 name: games[hit.game].name.clone(),
+                level: games[hit.game].task_level(hit.page),
                 page: hit.page,
                 title: games[hit.game].level_title(hit.page),
                 url: games[hit.game].level_url(hit.page),
