@@ -17,14 +17,10 @@ use crate::cache::{Cache, human_age, human_bytes};
 use crate::client::{Client, PAGE_TTL};
 use crate::games::{Category, Game};
 use crate::html::{Link, RenderOpts, Section};
-use crate::style::{St, Style, visible_width};
+use crate::style::{ColorMode, St, Style, visible_width};
 
 #[derive(Parser)]
-#[command(
-    name = "otw",
-    version,
-    about = "A Rust CLI for OverTheWire games"
-)]
+#[command(name = "otw", version, about = "A Rust CLI for OverTheWire games")]
 struct Cli {
     /// Use only locally cached pages; never touch the network
     #[arg(long, global = true)]
@@ -41,6 +37,16 @@ struct Cli {
     /// Wrap output at COLS columns (0 disables wrapping)
     #[arg(short = 'w', long, global = true, value_name = "COLS")]
     width: Option<usize>,
+
+    /// Color output: auto, always, or never
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        default_value = "auto",
+        value_name = "WHEN"
+    )]
+    color: ColorMode,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -209,7 +215,7 @@ fn main() {
         None => 0,
     };
     let cfg = Cfg {
-        style: Style::PLAIN,
+        style: Style::new(cli.color),
         width,
         links: cli.links,
         offline: cli.offline,
@@ -1245,9 +1251,7 @@ fn cmd_cache(command: CacheCommand, cfg: &Cfg) -> Result<()> {
         }
         CacheCommand::Fetch { games, all, jobs } => {
             if games.is_empty() && !all {
-                bail!(
-                    "specify at least one game, or --all\n\nexample: otw cache fetch --all"
-                );
+                bail!("specify at least one game, or --all\n\nexample: otw cache fetch --all");
             }
             let client = Client::new(cfg.offline, cfg.refresh)?;
             let all_games = games::load(&client)?;

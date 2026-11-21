@@ -48,6 +48,7 @@ Options:
       --offline       Use only locally cached pages
       --refresh       Re-download pages instead of using the cache
       --links         Show link URLs after link text
+      --color <WHEN>  Color output: auto, always, or never [default: auto]
   -w, --width <COLS>  Wrap output at COLS columns (0 disables wrapping)
   -h, --help          Print help
   -V, --version       Print version
@@ -80,6 +81,11 @@ the same number for both.
 and age. The game notes, goals, and source files belong to OverTheWire and
 remain with their authors; the tool fetches them at runtime and does not
 redistribute them.
+
+Color uses the terminal palette and ANSI attributes only. Body text inherits
+the terminal foreground, while game names, headings, and metadata use semantic
+roles. `--color never`, `NO_COLOR`, `CLICOLOR=0`, `TERM=dumb`, and non-terminal
+output all disable it. JSON is never colored.
 
 ## Install
 

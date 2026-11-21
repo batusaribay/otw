@@ -441,8 +441,15 @@ impl Renderer {
                     } else {
                         is_punctuation(piece)
                     };
+                    let piece: String = piece
+                        .chars()
+                        .filter(|character| !character.is_control())
+                        .collect();
+                    if piece.is_empty() {
+                        continue;
+                    }
                     tokens.push(Tok::Word {
-                        text: piece.to_string(),
+                        text: piece,
                         style,
                         glue,
                     });
@@ -496,7 +503,11 @@ impl Renderer {
                     }
                     "img" => {
                         if let Some(alt) = element.attr("alt") {
-                            let alt = alt.trim();
+                            let alt: String = alt
+                                .trim()
+                                .chars()
+                                .filter(|character| !character.is_control())
+                                .collect();
                             if !alt.is_empty() {
                                 tokens.push(word(format!("[{alt}]"), St::Dim));
                                 *pending_space = false;
@@ -797,6 +808,22 @@ mod tests {
         assert!(!text.contains('\u{1b}'), "{text:?}");
         assert!(!text.contains('\u{7}'), "{text:?}");
         assert!(text.contains("safe[31mred"), "{text:?}");
+    }
+
+    #[test]
+    fn strips_terminal_controls_when_color_is_enabled() {
+        let html = "<html><body><main id=\"content\"><h2>Level Goal</h2><p>safe\u{1b}[31mred</p></main></body></html>";
+        let text = render_page(
+            html,
+            &RenderOpts {
+                width: 80,
+                style: Style { ansi: true },
+                links: false,
+            },
+        );
+        assert!(!text.contains("\u{1b}[31m"), "{text:?}");
+        assert!(text.contains("safe[31mred"), "{text:?}");
+        assert!(text.contains("\u{1b}[1m"), "{text:?}");
     }
 
     #[test]
