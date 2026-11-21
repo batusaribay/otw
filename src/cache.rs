@@ -23,7 +23,7 @@ impl Cache {
     pub fn new() -> Result<Self> {
         let base = dirs::cache_dir().context("could not determine a cache directory")?;
         Ok(Self {
-            root: base.join("over-the-wire"),
+            root: base.join("otw"),
         })
     }
 

@@ -25,7 +25,7 @@ impl Client {
     pub fn new(offline: bool, refresh: bool) -> Result<Self> {
         let http = reqwest::blocking::Client::builder()
             .user_agent(concat!(
-                "over-the-wire/",
+                "otw/",
                 env!("CARGO_PKG_VERSION"),
                 " (+https://overthewire.org/wargames/)"
             ))
@@ -60,7 +60,7 @@ impl Client {
             return match self.cache.read_any(&rel) {
                 Some(body) => Ok(body),
                 None => bail!(
-                    "no cached copy of /{rel}\nrun once without --offline, or use `over-the-wire cache fetch --all`"
+                    "no cached copy of /{rel}\nrun once without --offline, or use `otw cache fetch --all`"
                 ),
             };
         }

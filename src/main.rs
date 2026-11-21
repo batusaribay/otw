@@ -21,7 +21,7 @@ use crate::style::{St, Style, visible_width};
 
 #[derive(Parser)]
 #[command(
-    name = "over-the-wire",
+    name = "otw",
     version,
     about = "A Rust CLI for OverTheWire games"
 )]
@@ -745,7 +745,7 @@ fn cmd_ssh(games: &[Game], name: &str, level: Option<&str>, run: bool) -> Result
     }
 
     bail!(
-        "{} has no online server\nit is a released game: see: over-the-wire info {}",
+        "{} has no online server\nit is a released game: see: otw info {}",
         game.name,
         game.key
     )
@@ -1246,7 +1246,7 @@ fn cmd_cache(command: CacheCommand, cfg: &Cfg) -> Result<()> {
         CacheCommand::Fetch { games, all, jobs } => {
             if games.is_empty() && !all {
                 bail!(
-                    "specify at least one game, or --all\n\nexample: over-the-wire cache fetch --all"
+                    "specify at least one game, or --all\n\nexample: otw cache fetch --all"
                 );
             }
             let client = Client::new(cfg.offline, cfg.refresh)?;

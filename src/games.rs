@@ -353,7 +353,7 @@ impl Game {
         match self.last {
             Some(last) => Ok(last),
             None => bail!(
-                "{} is a released, offline game and has no level pages\nsee: over-the-wire info {}",
+                "{} is a released, offline game and has no level pages\nsee: otw info {}",
                 self.name,
                 self.key
             ),
@@ -392,7 +392,7 @@ pub fn parse_level(game: &Game, input: &str) -> Result<u32> {
     Ok(number)
 }
 
-/// Parse a level that has a task (`over-the-wire level`).
+/// Parse a level that has a task (`otw level`).
 pub fn parse_task_level(game: &Game, input: &str) -> Result<u32> {
     let number = parse_level_number(game, input)?;
     let range = game.level_range()?;
