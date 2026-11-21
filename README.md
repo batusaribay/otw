@@ -4,81 +4,79 @@ A Rust CLI for OverTheWire games
 
 ![over-the-wire in a terminal](preview.png)
 
+## Why it exists
+
+The OverTheWire pages are a website: game lists, level tasks, and rules are
+spread across HTML pages, with source files hidden behind a JavaScript call.
+This tool puts the whole path in the terminal, offline when needed, and in
+plain text that pipes and searches.
+
 ## How it works
 
-1. `overthewire.org/games.json` provides the game list, level counts, SSH hosts and
-   ports, including the games that use special level numbering.
-2. Game, level and rules pages are downloaded on demand, parsed as HTML, and rendered
-   as width-aware plain text. Headings, lists and code blocks stay readable without
-   decorative markers.
-3. Some pages load their source with a `renderCode("...")` JavaScript call. Those
-   files are fetched too and shown inline, so Vortex and Semtex source code is
-   present in the terminal.
-4. Pages are cached under `$XDG_CACHE_HOME/over-the-wire` (normally
-   `~/.cache/over-the-wire`). Level pages are kept for a week and the game manifest
-   for six hours; stale copies are used when the network is unavailable.
-5. `search` walks every level page, matches case-insensitively, and prints a snippet
-   around the first hit in each level.
+1. `overthewire.org/games.json` provides the game list, level counts, SSH hosts,
+   and ports, including games with special level numbering.
+2. Game, level, and rules pages are downloaded on demand, parsed as HTML, and
+   rendered as width-aware plain text. Headings, lists, and code blocks stay
+   readable without decorative markers.
+3. Some pages load their source with a `renderCode("...")` call. Those files are
+   fetched too and shown inline, so Vortex and Semtex source is present.
+4. Pages are cached under `$XDG_CACHE_HOME/over-the-wire`, normally
+   `~/.cache/over-the-wire`. Level pages last a week and the manifest six hours.
+   Stale copies are used when the network is unavailable.
+5. `search` walks every level page, matches case-insensitively, and prints a
+   snippet around the first hit in each level.
 6. Output is plain text. Every command that makes sense as data has a `--json`
    form.
 
 ## Usage
 
-### Commands
-
-| Command | Action |
-| --- | --- |
-| `over-the-wire` | Print help. |
-| `over-the-wire games` | List games, level ranges and SSH servers. |
-| `over-the-wire info <game>` | Show a game's overview and beginner notes. |
-| `over-the-wire levels <game>` | List the levels of a game. |
-| `over-the-wire level <game> [level]` | Show the task for the level you are logged in as. |
-| `over-the-wire ssh <game> [level]` | Print the SSH command for a level. |
-| `over-the-wire ssh <game> [level] --run` | Connect with SSH. |
-| `over-the-wire search <text>` | Search every level's notes. |
-| `over-the-wire start` | Show the suggested order for playing the games. |
-| `over-the-wire rules` | Show the game rules. |
-| `over-the-wire page <path>` | Render any overthewire.org page. |
-| `over-the-wire cache status` | Show cache location, size and age. |
-| `over-the-wire cache fetch --all` | Download everything for offline reading. |
-| `over-the-wire cache clear` | Delete the cache. |
-
-Game names are case-insensitive. Levels accept `4`, `bandit4`, `level4` or `l4`.
-`ssh` with no level defaults to level 0. Natas is web-based, so
-`over-the-wire ssh natas 3` prints the level URL instead of an SSH command.
-
-`level` takes the level you are logged in as: `over-the-wire level bandit 3` shows the
-task for bandit3, which is website page 4. `level bandit` is shorthand for
-`level bandit 0`, which shows the login page and the first task. Krypton, Vortex and
-Natas use the same number for both.
-
-### Options
-
-| Option | Action |
-| --- | --- |
-| `--offline` | Read only from the cache, never touch the network. |
-| `--refresh` | Re-download pages instead of using the cache. |
-| `--links` | Show link URLs after link text. |
-| `-w, --width <COLS>` | Wrap at COLS columns; `0` disables wrapping. |
-
-### Examples
-
 ```bash
-over-the-wire games
-over-the-wire info bandit
-over-the-wire level bandit 0
-over-the-wire level bandit 3
-over-the-wire ssh bandit 3
-over-the-wire ssh bandit 3 --run
-over-the-wire search cron --game bandit
-over-the-wire search "hidden file" --game bandit --json
-over-the-wire info semtex
-over-the-wire page /rules/
-over-the-wire cache fetch --all
-over-the-wire --offline level bandit 30
+over-the-wire [OPTIONS] [COMMAND]
+
+Commands:
+  games   List every game and its server
+  info    Show a game's overview and beginner notes
+  levels  List the levels of a game
+  level   Show the task for the level you are logged in as
+  ssh     Print or run the ssh command for a level
+  search  Search the notes of every level
+  start   Show the suggested order for playing the games
+  rules   Show the game rules
+  page    Render any page from overthewire.org
+  cache   Inspect or manage the local page cache
+
+Options:
+      --offline       Use only locally cached pages
+      --refresh       Re-download pages instead of using the cache
+      --links         Show link URLs after link text
+  -w, --width <COLS>  Wrap output at COLS columns (0 disables wrapping)
+  -h, --help          Print help
+  -V, --version       Print version
+
+Examples:
+  over-the-wire games
+  over-the-wire level bandit 3
+  over-the-wire ssh bandit 3 --run
+  over-the-wire search cron --game bandit
+  over-the-wire --offline level bandit 30
+  over-the-wire cache fetch --all
 ```
 
-`search` exits `1` when nothing matches, like `grep`; other errors also exit `1`.
+## Notes
+
+- Game names are case-insensitive. Levels accept `4`, `bandit4`, `level4`, or
+  `l4`. `ssh` with no level defaults to level 0. Natas is web based, so
+  `over-the-wire ssh natas 3` prints the level URL instead of an SSH command.
+- `level` takes the level you are logged in as. `over-the-wire level bandit 3`
+  shows the task for bandit3, which is page 4. `level bandit` is shorthand for
+  `level bandit 0`, the login page and first task. Krypton, Vortex, and Natas
+  use the same number for both.
+- `search` exits `1` when nothing matches, like `grep`. Other errors also exit
+  `1`.
+- The cache is safe to delete. `cache status` shows its location, size, and age.
+- The game notes, goals, and source files belong to OverTheWire and remain with
+  their authors. The tool fetches them at runtime and does not redistribute
+  them.
 
 ## Install
 
@@ -88,17 +86,6 @@ over-the-wire --offline level bandit 30
 cargo install --git https://github.com/batusaribay/over-the-wire.git --locked
 ```
 
-## Uninstall
-
-```bash
-cargo uninstall over-the-wire
-rm -rf ~/.cache/over-the-wire
-```
-
 ## License
 
-The `over-the-wire` code is licensed under the [MIT License](LICENSE).
-
-The game notes, goals and source files shown by the tool belong to
-OverTheWire and remain copyright their authors. The tool fetches them at runtime
-and does not redistribute them.
+This project is licensed under the [MIT License](LICENSE).

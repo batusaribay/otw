@@ -3,7 +3,7 @@ use std::io::IsTerminal;
 use unicode_width::UnicodeWidthStr;
 
 /// A small set of monochrome text styles, mapped to ANSI SGR attributes.
-/// Only weight, slant, dimness and underline are used — never color.
+/// Only weight, slant, dimness and underline are used, never color.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum St {
     Normal,

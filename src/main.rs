@@ -549,7 +549,7 @@ fn cmd_levels(games: &[Game], name: &str, cfg: &Cfg, json: bool) -> Result<()> {
     out.push_str(&cfg.style.paint(St::Accent, &game.name));
     out.push_str(
         &cfg.style
-            .paint(St::Dim, &format!(" · {} levels (0–{last})\n\n", last + 1)),
+            .paint(St::Dim, &format!(" · {} levels (0-{last})\n\n", last + 1)),
     );
     for level in 0..=last {
         let page = game.task_page(level).expect("level range is valid");
@@ -745,7 +745,7 @@ fn cmd_ssh(games: &[Game], name: &str, level: Option<&str>, run: bool) -> Result
     }
 
     bail!(
-        "{} has no online server\nit is a released game — see: over-the-wire info {}",
+        "{} has no online server\nit is a released game: see: over-the-wire info {}",
         game.name,
         game.key
     )
@@ -762,14 +762,14 @@ fn cmd_start(cfg: &Cfg) {
     out.push_str("\n\n");
 
     let steps: [(&str, &str); 4] = [
-        ("bandit", "Unix/Linux basics — start here"),
+        ("bandit", "Unix/Linux basics, start here"),
         (
             "natas",
-            "web security — or krypton (crypto) or leviathan (reverse engineering)",
+            "web security, or krypton (crypto) or leviathan (reverse engineering)",
         ),
         (
             "narnia",
-            "binary exploitation — then behemoth → utumno → maze",
+            "binary exploitation, then behemoth → utumno → maze",
         ),
         (
             "vortex",
@@ -1219,7 +1219,7 @@ fn cmd_cache(command: CacheCommand, cfg: &Cfg) -> Result<()> {
                 &stats
                     .oldest
                     .map(human_age)
-                    .unwrap_or_else(|| "—".to_string()),
+                    .unwrap_or_else(|| "-".to_string()),
             ));
             out.push_str(&footer_row(
                 cfg,
@@ -1227,7 +1227,7 @@ fn cmd_cache(command: CacheCommand, cfg: &Cfg) -> Result<()> {
                 &stats
                     .newest
                     .map(human_age)
-                    .unwrap_or_else(|| "—".to_string()),
+                    .unwrap_or_else(|| "-".to_string()),
             ));
             emit(&out);
             Ok(())

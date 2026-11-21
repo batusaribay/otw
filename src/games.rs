@@ -336,8 +336,8 @@ impl Game {
 
     pub fn levels_label(&self) -> String {
         match self.level_range() {
-            Ok(range) => format!("{}–{}", range.start(), range.end()),
-            Err(_) => "—".to_string(),
+            Ok(range) => format!("{}-{}", range.start(), range.end()),
+            Err(_) => "-".to_string(),
         }
     }
 
@@ -387,7 +387,7 @@ pub fn parse_level(game: &Game, input: &str) -> Result<u32> {
     let number = parse_level_number(game, input)?;
     let last = game.require_levels()?;
     if number > last {
-        bail!("{} has levels 0–{} (got {number})", game.name, last);
+        bail!("{} has levels 0-{} (got {number})", game.name, last);
     }
     Ok(number)
 }
@@ -398,7 +398,7 @@ pub fn parse_task_level(game: &Game, input: &str) -> Result<u32> {
     let range = game.level_range()?;
     if !range.contains(&number) {
         bail!(
-            "{} has levels {}–{} (got {number})",
+            "{} has levels {}-{} (got {number})",
             game.name,
             range.start(),
             range.end()
@@ -529,15 +529,15 @@ mod tests {
     fn level_ranges_cover_tasks_only() {
         let bandit = game("bandit", false, 34);
         assert_eq!(bandit.level_range().unwrap(), 0..=33);
-        assert_eq!(bandit.levels_label(), "0–33");
+        assert_eq!(bandit.levels_label(), "0-33");
 
         let krypton = game("krypton", true, 6);
         assert_eq!(krypton.level_range().unwrap(), 0..=6);
-        assert_eq!(krypton.levels_label(), "0–6");
+        assert_eq!(krypton.levels_label(), "0-6");
 
         let natas = game("natas", false, 34);
         assert_eq!(natas.level_range().unwrap(), 0..=34);
-        assert_eq!(natas.levels_label(), "0–34");
+        assert_eq!(natas.levels_label(), "0-34");
     }
 
     #[test]
