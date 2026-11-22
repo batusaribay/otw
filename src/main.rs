@@ -194,11 +194,16 @@ impl Cfg {
 }
 
 fn main() {
-    let matches = Cli::command().color(clap::ColorChoice::Never).get_matches();
+    let matches = Cli::command()
+        .color(clap::ColorChoice::Never)
+        .styles(clap::builder::Styles::plain())
+        .get_matches();
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|error| error.exit());
 
     let Some(command) = cli.command else {
-        let mut command = Cli::command().color(clap::ColorChoice::Never);
+        let mut command = Cli::command()
+            .color(clap::ColorChoice::Never)
+            .styles(clap::builder::Styles::plain());
         if let Err(error) = command.print_help()
             && error.kind() != io::ErrorKind::BrokenPipe
         {
