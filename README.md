@@ -54,8 +54,6 @@ Options:
   -V, --version       Print version
 ```
 
-Typical calls:
-
 ```bash
 otw games
 otw level bandit 3
