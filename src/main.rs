@@ -1,5 +1,6 @@
 mod cache;
 mod client;
+mod config;
 mod games;
 mod html;
 mod style;
@@ -213,8 +214,15 @@ fn main() {
         return;
     };
 
+    let config = match config::load() {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("error: {error:#}");
+            std::process::exit(2);
+        }
+    };
     let is_tty = style::stdout_is_tty();
-    let width = match cli.width {
+    let width = match cli.width.or(config.width) {
         Some(width) => width,
         None if is_tty => style::terminal_width().clamp(40, 100),
         None => 0,
@@ -742,12 +750,9 @@ fn cmd_ssh(games: &[Game], name: &str, level: Option<&str>, run: bool) -> Result
 
     if let Some(url) = game.web_url(login_level) {
         if run {
-            let status = std::process::Command::new("xdg-open")
-                .arg(&url)
-                .status()
-                .context("could not open a browser (xdg-open)")?;
+            let status = open_browser(&url)?;
             if !status.success() {
-                bail!("xdg-open failed");
+                bail!("the browser command failed");
             }
         } else {
             emit(&format!("{url}\n"));
@@ -760,6 +765,30 @@ fn cmd_ssh(games: &[Game], name: &str, level: Option<&str>, run: bool) -> Result
         game.name,
         game.key
     )
+}
+
+#[cfg(target_os = "windows")]
+fn open_browser(url: &str) -> Result<std::process::ExitStatus> {
+    std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .status()
+        .context("could not open a browser")
+}
+
+#[cfg(target_os = "macos")]
+fn open_browser(url: &str) -> Result<std::process::ExitStatus> {
+    std::process::Command::new("open")
+        .arg(url)
+        .status()
+        .context("could not open a browser")
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn open_browser(url: &str) -> Result<std::process::ExitStatus> {
+    std::process::Command::new("xdg-open")
+        .arg(url)
+        .status()
+        .context("could not open a browser (xdg-open)")
 }
 
 fn cmd_start(cfg: &Cfg) {
@@ -811,6 +840,53 @@ struct Hit {
     before: String,
     matched: String,
     after: String,
+}
+
+fn find_hit(target: &Target, page: &html::Page, regex: &regex::Regex) -> Option<Hit> {
+    for section in &page.sections {
+        let flat = section
+            .text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let Some(found) = regex.find(&flat) else {
+            continue;
+        };
+        let (start, end) = (found.start(), found.end());
+        let raw_before = &flat[..start];
+        let truncated = raw_before.chars().count() > 70;
+        let before: String = if truncated {
+            raw_before
+                .chars()
+                .rev()
+                .take(70)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect()
+        } else {
+            raw_before.to_string()
+        };
+        let before = if truncated {
+            format!("…{}", before.trim_start())
+        } else {
+            before
+        };
+        let rest = &flat[end..];
+        let after = if rest.chars().count() > 120 {
+            format!("{}…", rest.chars().take(120).collect::<String>())
+        } else {
+            rest.to_string()
+        };
+        return Some(Hit {
+            game: target.game,
+            page: target.page,
+            before,
+            matched: flat[start..end].to_string(),
+            after,
+        });
+    }
+    None
 }
 
 #[derive(Serialize)]
@@ -898,76 +974,26 @@ fn cmd_search(
     let regex = regex::RegexBuilder::new(&regex::escape(query))
         .case_insensitive(true)
         .build()?;
-    let queue = Mutex::new(VecDeque::from(targets));
     let hits = Mutex::new(Vec::<Hit>::new());
     let failures = Mutex::new(Vec::<(String, String)>::new());
     let done = AtomicUsize::new(0);
     let workers = jobs.clamp(1, 16);
 
-    std::thread::scope(|scope| {
-        for _ in 0..workers {
-            scope.spawn(|| {
-                loop {
-                    let target = {
-                        let mut queue = queue.lock().unwrap();
-                        queue.pop_front()
-                    };
-                    let Some(target) = target else {
-                        break;
-                    };
-
+    for chunk in targets.chunks(workers) {
+        if limit > 0 && hits.lock().unwrap().len() >= limit {
+            break;
+        }
+        std::thread::scope(|scope| {
+            for target in chunk {
+                let hits = &hits;
+                let failures = &failures;
+                let done = &done;
+                let regex = &regex;
+                scope.spawn(move || {
                     let result = (|| -> Result<Option<Hit>> {
                         let raw = client.get(&target.path, PAGE_TTL)?;
                         let page = html::parse_page(&raw);
-                        let mut found_flat = None;
-                        for section in &page.sections {
-                            let flat = section
-                                .text
-                                .split_whitespace()
-                                .collect::<Vec<_>>()
-                                .join(" ");
-                            if let Some(found) = regex.find(&flat) {
-                                let (start, end) = (found.start(), found.end());
-                                found_flat = Some((flat, start, end));
-                                break;
-                            }
-                        }
-                        let Some((flat, start, end)) = found_flat else {
-                            return Ok(None);
-                        };
-                        let raw_before = &flat[..start];
-                        let truncated = raw_before.chars().count() > 70;
-                        let before: String = if truncated {
-                            raw_before
-                                .chars()
-                                .rev()
-                                .take(70)
-                                .collect::<Vec<_>>()
-                                .into_iter()
-                                .rev()
-                                .collect()
-                        } else {
-                            raw_before.to_string()
-                        };
-                        let before = if truncated {
-                            format!("…{}", before.trim_start())
-                        } else {
-                            before
-                        };
-                        let rest = &flat[end..];
-                        let after_truncated = rest.chars().count() > 120;
-                        let after = if after_truncated {
-                            format!("{}…", rest.chars().take(120).collect::<String>())
-                        } else {
-                            rest.to_string()
-                        };
-                        Ok(Some(Hit {
-                            game: target.game,
-                            page: target.page,
-                            before,
-                            matched: flat[start..end].to_string(),
-                            after,
-                        }))
+                        Ok(find_hit(target, &page, regex))
                     })();
 
                     match result {
@@ -983,10 +1009,10 @@ fn cmd_search(
                     if show_progress {
                         eprint!("\rsearching {count}/{total} pages...");
                     }
-                }
-            });
-        }
-    });
+                });
+            }
+        });
+    }
 
     if show_progress {
         eprint!("\r\x1b[K");
@@ -1139,28 +1165,8 @@ fn expand_includes(client: &Client, html: &str, page_path: &str) -> String {
     out
 }
 
-fn page_path(input: &str) -> Result<String> {
-    let mut path = input.trim();
-    if let Some(rest) = path
-        .strip_prefix("https://overthewire.org")
-        .or_else(|| path.strip_prefix("http://overthewire.org"))
-    {
-        path = rest;
-    } else if path.starts_with("http://") || path.starts_with("https://") {
-        bail!("only pages on overthewire.org are supported");
-    }
-    let path = path.trim_start_matches('/');
-    if path.is_empty() {
-        bail!("missing page path");
-    }
-    if path.contains("..") {
-        bail!("invalid page path");
-    }
-    Ok(path.to_string())
-}
-
 fn cmd_page(client: &Client, path: &str, cfg: &Cfg, json: bool) -> Result<()> {
-    let path = page_path(path)?;
+    let path = client::normalize_path(path)?;
     let raw = client
         .get(&path, PAGE_TTL)
         .with_context(|| format!("loading /{path}"))?;
@@ -1356,5 +1362,44 @@ fn cmd_cache(command: CacheCommand, cfg: &Cfg) -> Result<()> {
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_snippets_keep_unicode_boundaries_and_context() {
+        let target = Target {
+            game: 2,
+            page: 3,
+            path: "wargames/bandit/bandit3.html".to_string(),
+        };
+        let page = html::Page {
+            sections: vec![
+                Section {
+                    heading: None,
+                    text: "Nothing here.".to_string(),
+                },
+                Section {
+                    heading: Some("Goal".to_string()),
+                    text: format!("{} Password {}", "é".repeat(80), "界".repeat(130)),
+                },
+            ],
+            ..html::Page::default()
+        };
+        let regex = regex::RegexBuilder::new("password")
+            .case_insensitive(true)
+            .build()
+            .unwrap();
+        let hit = find_hit(&target, &page, &regex).unwrap();
+        assert_eq!(hit.game, 2);
+        assert_eq!(hit.page, 3);
+        assert_eq!(hit.matched, "Password");
+        assert!(hit.before.starts_with('…'));
+        assert!(hit.before.chars().count() <= 71);
+        assert!(hit.after.ends_with('…'));
+        assert!(hit.after.chars().count() <= 121);
     }
 }

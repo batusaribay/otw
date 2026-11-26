@@ -310,8 +310,12 @@ impl Renderer {
     fn render_node(&mut self, node: NodeRef<'_, Node>) {
         match node.value() {
             Node::Text(text) => {
-                let text = text.text.trim();
-                if text.is_empty() {
+                let text: String = text
+                    .text
+                    .chars()
+                    .filter(|character| !character.is_control() || character.is_whitespace())
+                    .collect();
+                if text.trim().is_empty() {
                     return;
                 }
                 let words: Vec<Tok> = text
@@ -374,7 +378,11 @@ impl Renderer {
             "br" => self.blank(),
             "img" => {
                 if let Some(alt) = element.value().attr("alt") {
-                    let alt = alt.trim();
+                    let alt: String = alt
+                        .trim()
+                        .chars()
+                        .filter(|character| !character.is_control())
+                        .collect();
                     if !alt.is_empty() {
                         self.blank();
                         self.line(&self.style.paint(St::Dim, &format!("[image: {alt}]")));
@@ -667,7 +675,12 @@ impl Renderer {
     }
 
     fn render_pre(&mut self, element: ElementRef<'_>) {
-        let text: String = element.text().collect();
+        let text: String = element
+            .text()
+            .collect::<String>()
+            .chars()
+            .filter(|character| *character == '\n' || *character == '\t' || !character.is_control())
+            .collect();
         let text = text.strip_suffix('\n').unwrap_or(&text);
         if text.trim().is_empty() {
             return;
@@ -812,7 +825,7 @@ mod tests {
 
     #[test]
     fn strips_terminal_controls_when_color_is_enabled() {
-        let html = "<html><body><main id=\"content\"><h2>Level Goal</h2><p>safe\u{1b}[31mred</p></main></body></html>";
+        let html = "<html><body><main id=\"content\"><h2>Level Goal</h2>top\u{1b}[31m<p>safe\u{1b}[31mred</p><pre>a\u{1b}[32mb\u{7}</pre><img alt=\"x\u{1b}[33my\"></main></body></html>";
         let text = render_page(
             html,
             &RenderOpts {
@@ -822,7 +835,11 @@ mod tests {
             },
         );
         assert!(!text.contains("\u{1b}[31m"), "{text:?}");
+        assert!(!text.contains("\u{1b}[32m"), "{text:?}");
+        assert!(!text.contains("\u{1b}[33m"), "{text:?}");
+        assert!(!text.contains('\u{7}'), "{text:?}");
         assert!(text.contains("safe[31mred"), "{text:?}");
+        assert!(text.contains("a[32mb"), "{text:?}");
         assert!(text.contains("\u{1b}[1m"), "{text:?}");
     }
 

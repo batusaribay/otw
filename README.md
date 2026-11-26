@@ -66,24 +66,13 @@ otw cache fetch --all
 ## Notes
 
 Game names are case-insensitive. Levels accept `4`, `bandit4`, `level4`, or
-`l4`. `ssh` with no level defaults to level 0. Natas is web based, so
-`otw ssh natas 3` prints the level URL instead of an SSH command.
+`l4`. `level` takes the level you are logged in as, while `ssh` with no level
+defaults to level 0. Natas is web based, so `otw ssh natas 3` prints its URL.
 
-`level` takes the level you are logged in as. `otw level bandit 3` shows the
-task for bandit3, which is page 4. `level bandit` is shorthand for
-`level bandit 0`, the login page and first task. Krypton, Vortex, and Natas use
-the same number for both.
+## Config
 
-`search` exits `1` when nothing matches, like `grep`. Other errors also exit
-`1`. The cache is safe to delete, and `cache status` shows its location, size,
-and age. The game notes, goals, and source files belong to OverTheWire and
-remain with their authors; the tool fetches them at runtime and does not
-redistribute them.
-
-Color uses the terminal palette and ANSI attributes only. Body text inherits
-the terminal foreground, while game names, headings, and metadata use semantic
-roles. `--color never`, `NO_COLOR`, `CLICOLOR=0`, `TERM=dumb`, and non-terminal
-output all disable it. JSON is never colored.
+Reads `~/.config/otw/config.toml` if present. Flags override the file; defaults
+apply otherwise.
 
 ## Install
 

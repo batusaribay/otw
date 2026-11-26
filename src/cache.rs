@@ -85,9 +85,15 @@ impl Cache {
         }
         let n = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         let tmp = path.with_extension(format!("tmp-{}-{n}", std::process::id()));
-        fs::write(&tmp, body).with_context(|| format!("writing {}", tmp.display()))?;
-        fs::rename(&tmp, &path)
-            .with_context(|| format!("moving cache file into {}", path.display()))?;
+        if let Err(error) = fs::write(&tmp, body) {
+            fs::remove_file(&tmp).ok();
+            return Err(error).with_context(|| format!("writing {}", tmp.display()));
+        }
+        if let Err(error) = fs::rename(&tmp, &path) {
+            fs::remove_file(&tmp).ok();
+            return Err(error)
+                .with_context(|| format!("moving cache file into {}", path.display()));
+        }
         Ok(())
     }
 
@@ -115,14 +121,21 @@ fn walk(dir: &Path, stats: &mut CacheStats) -> Result<()> {
             Ok(entry) => entry,
             Err(_) => continue,
         };
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => continue,
+        };
+        if file_type.is_dir() {
+            walk(&entry.path(), stats)?;
+            continue;
+        }
+        if !file_type.is_file() {
+            continue;
+        }
         let metadata = match entry.metadata() {
             Ok(metadata) => metadata,
             Err(_) => continue,
         };
-        if metadata.is_dir() {
-            walk(&entry.path(), stats)?;
-            continue;
-        }
         stats.files += 1;
         stats.bytes += metadata.len();
         if let Ok(modified) = metadata.modified() {
@@ -168,5 +181,61 @@ pub fn human_duration(age: Duration) -> String {
         60..=3599 => format!("{} min ago", secs / 60),
         3600..=86_399 => format!("{} h ago", secs / 3600),
         _ => format!("{} days ago", secs / 86_400),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cache_paths_cannot_escape_the_root() {
+        let cache = Cache {
+            root: PathBuf::from("/cache/otw"),
+        };
+        assert_eq!(
+            cache.path("rules/").unwrap(),
+            PathBuf::from("/cache/otw/rules/index.html")
+        );
+        assert!(cache.path("../outside").is_none());
+        assert!(cache.path("rules/../../outside").is_none());
+        assert!(cache.path("rules\\outside").is_none());
+        assert!(cache.path("rules?query").is_none());
+        assert!(cache.path("").is_none());
+    }
+
+    #[test]
+    fn formats_sizes_and_ages() {
+        assert_eq!(human_bytes(0), "0 B");
+        assert_eq!(human_bytes(1536), "1.5 KiB");
+        assert_eq!(human_duration(Duration::from_secs(60)), "1 min ago");
+        assert_eq!(human_duration(Duration::from_secs(3600)), "1 h ago");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stats_do_not_follow_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let unique = format!(
+            "otw-cache-test-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        );
+        let root = std::env::temp_dir().join(format!("{unique}-cache"));
+        let outside = std::env::temp_dir().join(format!("{unique}-outside"));
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(root.join("page.html"), "page").unwrap();
+        fs::write(outside.join("secret"), "secret").unwrap();
+        symlink(&outside, root.join("escape")).unwrap();
+
+        let cache = Cache { root: root.clone() };
+        let stats = cache.stats().unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.bytes, 4);
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(outside).unwrap();
     }
 }

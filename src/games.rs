@@ -327,8 +327,10 @@ impl Game {
     /// next task).
     pub fn level_range(&self) -> Result<std::ops::RangeInclusive<u32>> {
         let last = self.require_levels()?;
-        if self.key == "natas" || self.special || last == 0 {
+        if self.key == "natas" || self.special {
             Ok(0..=last)
+        } else if last == 0 {
+            bail!("{} has no task pages", self.name)
         } else {
             Ok(0..=(last - 1))
         }
@@ -538,6 +540,11 @@ mod tests {
         let natas = game("natas", false, 34);
         assert_eq!(natas.level_range().unwrap(), 0..=34);
         assert_eq!(natas.levels_label(), "0-34");
+
+        let empty = game("bandit", false, 0);
+        assert!(empty.level_range().is_err());
+        assert!(empty.task_page(0).is_err());
+        assert_eq!(empty.levels_label(), "-");
     }
 
     #[test]
