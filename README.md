@@ -79,17 +79,6 @@ defaults apply otherwise.
 # width = 100
 ```
 
-`otw level` also reads `~/.config/otw/credentials.toml` when present and prints
-the host, port, username, and password for the level:
-
-```toml
-[bandit]
-0 = "bandit0"
-1 = "..."
-```
-
-Passwords stay local; nothing is fetched or uploaded.
-
 ## Install
 
 **Requirements:** Rust 1.88+ and `git`.
