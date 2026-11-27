@@ -182,6 +182,7 @@ struct Cfg {
     links: bool,
     offline: bool,
     refresh: bool,
+    credentials: config::Credentials,
 }
 
 impl Cfg {
@@ -221,6 +222,13 @@ fn main() {
             std::process::exit(2);
         }
     };
+    let credentials = match config::load_credentials() {
+        Ok(credentials) => credentials,
+        Err(error) => {
+            eprintln!("error: {error:#}");
+            std::process::exit(2);
+        }
+    };
     let is_tty = style::stdout_is_tty();
     let width = match cli.width.or(config.width) {
         Some(width) => width,
@@ -233,6 +241,7 @@ fn main() {
         links: cli.links,
         offline: cli.offline,
         refresh: cli.refresh,
+        credentials,
     };
     if let Err(error) = run(command, &cfg) {
         eprintln!("error: {error:#}");
@@ -593,6 +602,10 @@ struct LevelJson {
     read_as: Option<String>,
     ssh: Option<String>,
     web: Option<String>,
+    host: Option<String>,
+    port: Option<u16>,
+    username: Option<String>,
+    password: Option<String>,
     start: Option<StartJson>,
     sections: Vec<Section>,
     links: Vec<Link>,
@@ -649,6 +662,17 @@ fn show_level(
 
     let title = game.level_title(page_number);
     let login_level = game.login_level(page_number);
+    let host = game.host.clone();
+    let port = game.port;
+    let username = if host.is_some() || game.web_url(login_level).is_some() {
+        Some(format!("{}{}", game.key, login_level))
+    } else {
+        None
+    };
+    let password = cfg
+        .credentials
+        .password(&game.key, login_level)
+        .map(str::to_string);
 
     // Level 0 of a normal shell game starts with the login page (page 0) and
     // then the first task (page 1). Show both so one command starts the game.
@@ -681,6 +705,10 @@ fn show_level(
             read_as: game.read_as(page_number),
             ssh: game.ssh_command(login_level),
             web: game.web_url(page_number),
+            host: host.clone(),
+            port,
+            username: username.clone(),
+            password: password.clone(),
             start: start.as_ref().map(|start| StartJson {
                 title: start.title.clone(),
                 url: start.url.clone(),
@@ -725,6 +753,30 @@ fn show_level(
         out.push_str(&section_heading(cfg, "First task"));
     }
     out.push_str(&body);
+
+    let mut details = String::new();
+    if let Some(host) = &host {
+        details.push_str(&footer_row(cfg, "Host", host));
+    }
+    if let Some(port) = port {
+        details.push_str(&footer_row(cfg, "Port", &port.to_string()));
+    }
+    if let Some(username) = &username {
+        details.push_str(&footer_row(cfg, "Username", username));
+    }
+    if let Some(password) = &password {
+        details.push_str(&footer_row(cfg, "Password", password));
+    } else if username.is_some() {
+        details.push_str(&footer_row(cfg, "Password", "not set in credentials.toml"));
+    }
+    if !details.is_empty() {
+        if !out.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push('\n');
+        out.push_str(&details);
+    }
+
     emit(&out);
     Ok(())
 }

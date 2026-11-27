@@ -74,6 +74,17 @@ defaults to level 0. Natas is web based, so `otw ssh natas 3` prints its URL.
 Reads `~/.config/otw/config.toml` if present. Flags override the file; defaults
 apply otherwise.
 
+`otw level` also reads `~/.config/otw/credentials.toml` when present and prints
+the host, port, username, and password for the level:
+
+```toml
+[bandit]
+0 = "bandit0"
+1 = "..."
+```
+
+Passwords stay local; nothing is fetched or uploaded.
+
 ## Install
 
 **Requirements:** Rust 1.88+ and `git`.
