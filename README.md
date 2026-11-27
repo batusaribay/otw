@@ -71,8 +71,13 @@ defaults to level 0. Natas is web based, so `otw ssh natas 3` prints its URL.
 
 ## Config
 
-Reads `~/.config/otw/config.toml` if present. Flags override the file; defaults
-apply otherwise.
+Optional. Reads `~/.config/otw/config.toml` if present. Flags override the file;
+defaults apply otherwise.
+
+```toml
+# Output width in columns. 0 disables wrapping.
+# width = 100
+```
 
 `otw level` also reads `~/.config/otw/credentials.toml` when present and prints
 the host, port, username, and password for the level:
