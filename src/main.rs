@@ -356,7 +356,7 @@ fn print_json<T: Serialize>(value: &T) -> Result<()> {
 fn footer_row(cfg: &Cfg, label: &str, value: &str) -> String {
     format!(
         "{} {}\n",
-        cfg.style.paint(St::Dim, &format!("{label:<7}")),
+        cfg.style.paint(St::Dim, &format!("{label:<9}")),
         value
     )
 }
